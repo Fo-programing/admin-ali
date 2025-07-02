@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة تحكم الطلاب</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+   body {
+  font-family: 'Cairo', sans-serif;
+  background: linear-gradient(135deg, #e3f2fd, #ffffff);
+  margin: 0;
+  padding: 20px;
+  color: #333;
+}
+
+h1 {
+  text-align: center;
+  color: #004d7a;
+  font-size: 28px;
+  margin-bottom: 30px;
+}
+
+input, button, select {
+  padding: 12px 16px;
+  margin: 6px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  font-family: 'Cairo', sans-serif;
+  font-size: 16px;
+  transition: 0.3s ease;
+  outline: none;
+}
+
+input:focus, select:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 6px rgba(25, 118, 210, 0.4);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+}
+
+th {
+  background-color: #1976d2;
+  color: #fff;
+  padding: 14px;
+  font-size: 16px;
+}
+
+td {
+  padding: 14px;
+  border-bottom: 1px solid #eee;
+  text-align: center;
+  font-size: 15px;
+}
+
+.control-panel {
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn {
+  background-color: #1976d2;
+  color: #fff;
+  border: none;
+  font-weight: bold;
+  transition: background 0.3s ease;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background-color: #125ea5;
+}
+
+.btn-danger {
+  background-color: #e53935;
+}
+
+.btn-danger:hover {
+  background-color: #c62828;
+}
+
+.btn-success {
+  background-color: #43a047;
+}
+
+.btn-success:hover {
+  background-color: #2e7d32;
+}
+
+/* نموذج تسجيل الدخول بشكل جميل */
+.login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom right, #ffffff, #e3f2fd);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.login-box {
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  text-align: center;
+  width: 300px;
+  animation: scaleUp 0.4s ease-in-out;
+}
+
+.login-box h2 {
+  color: #1976d2;
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+.login-box input {
+  width: 100%;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.login-box .btn-success {
+  width: 100%;
+  font-size: 16px;
+}
+
+/* تأثيرات بسيطة */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+  </style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h2>🔒 تسجيل الدخول</h2>
+    <input type="password" id="loginPassword" placeholder="ادخل كلمة المرور">
+    <br>
+    <button class="btn btn-success" onclick="checkLogin()">دخول</button>
+  </div>
+</div>
+
+<h1>📚 لوحة تحكم الطلاب</h1>
+
+<div class="control-panel">
+  <input type="text" id="token" placeholder="🔑 GitHub Token" style="width:300px">
+  <input type="text" id="searchId" placeholder="🔍 أدخل كود الطالب للبحث">
+  <button class="btn" onclick="searchStudent()">بحث</button>
+  <button class="btn btn-success" onclick="addStudent()">➕ إضافة طالب</button>
+  <button class="btn" onclick="openFile()">📂 فتح ملف GitHub</button>
+  <button class="btn" onclick="saveToGitHub()">💾 حفظ التعديلات</button>
+</div>
+
+<div id="studentsTable"></div>
+
+<script>
+let students = {};
+let sha = "";
+const owner = "Fo-programing";
+const repo = "Pro";
+const path = "students.js";
+const branch = "main";
+const PASSWORD = "admin123";
+let githubFileUrl = `https://github.com/${owner}/${repo}/blob/${branch}/${path}`;
+
+if (localStorage.getItem("gh_token")) {
+  document.getElementById("token").value = localStorage.getItem("gh_token");
+}
+
+function checkLogin() {
+  const pass = document.getElementById("loginPassword").value;
+  if (pass === PASSWORD) {
+    document.getElementById("loginScreen").style.display = "none";
+  } else {
+    alert("كلمة مرور خاطئة!");
+  }
+}
+
+async function loadStudents() {
+  let res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+  let data = await res.json();
+  sha = data.sha;
+  let code = atob(data.content);
+  let jsonText = code.match(/{[\s\S]*}/)[0];
+  students = eval('(' + jsonText + ')');
+  renderTable();
+}
+
+function renderTable() {
+  let html = '<table><thead><tr><th>الكود</th><th>الاسم</th><th>الصف</th><th>معلومة</th><th>أيام الحضور</th><th>المصروفات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody>';
+  for (let id in students) {
+    let s = students[id];
+    html += `<tr>
+      <td>${id}</td>
+      <td>${s.name}</td>
+      <td>${s.main}</td>
+      <td>${s.info}</td>
+      <td>${Object.entries(s.attendance).map(([k,v]) => `${k}: <select onchange="updateAttendance('${id}','${k}',this.value)"><option ${v=="حاضر"?'selected':''}>حاضر</option><option ${v=="غائب"?'selected':''}>غائب</option><option ${v=="-"?'selected':''}>-</option></select>`).join('<br>')}</td>
+      <td>${Object.entries(s.fees).map(([k,v]) => `${k}: <input type='checkbox' onchange="updateFee('${id}','${k}',this.checked)" ${v?'checked':''}>`).join('<br>')}</td>
+      <td><button class="btn" onclick="editStudent('${id}')">✏️</button></td>
+      <td><button class="btn btn-danger" onclick="deleteStudent('${id}')">🗑️</button></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('studentsTable').innerHTML = html;
+}
+
+function updateAttendance(id, day, value) {
+  students[id].attendance[day] = value;
+}
+
+function updateFee(id, month, value) {
+  students[id].fees[month] = value;
+}
+
+function searchStudent() {
+  const id = document.getElementById('searchId').value.trim();
+  if (students[id]) {
+    Swal.fire({
+      title: '📄 بيانات الطالب',
+      html: `<b>الاسم:</b> ${students[id].name}<br>
+             <b>الصف:</b> ${students[id].main}<br>
+             <b>معلومة:</b> ${students[id].info}`,
+    });
+  } else {
+    Swal.fire('لم يتم العثور على الطالب');
+  }
+}
+
+function openFile() {
+  window.open(githubFileUrl, '_blank');
+}
+
+function addStudent() {
+  Swal.fire({
+    title: '➕ إضافة طالب',
+    html: `
+      <input id="newId" placeholder="كود الطالب"><br>
+      <input id="newName" placeholder="اسم الطالب"><br>
+      <input id="newMain" placeholder="الصف"><br>
+      <input id="newInfo" placeholder="معلومة">
+    `,
+    preConfirm: () => {
+      let id = document.getElementById('newId').value.trim();
+      let name = document.getElementById('newName').value;
+      let main = document.getElementById('newMain').value;
+      let info = document.getElementById('newInfo').value;
+      if (!id || students[id]) return Swal.showValidationMessage('كود موجود أو غير صالح');
+      students[id] = {
+        name, main, info,
+        attendance: {"السبت":"-","الأحد":"-","الاثنين":"-","الثلاثاء":"-","الأربعاء":"-","الخميس":"-","الجمعة":"-"},
+        fees: {"أغسطس":false,"سبتمبر":false,"أكتوبر":false,"نوفمبر":false,"ديسمبر":false,"يناير":false,"فبراير":false,"مارس":false,"أبريل":false}
+      };
+      renderTable();
+    }
+  });
+}
+
+function editStudent(id) {
+  let s = students[id];
+  Swal.fire({
+    title: `✏️ تعديل بيانات الطالب ${id}`,
+    html: `
+      <input id="editName" value="${s.name}"><br>
+      <input id="editMain" value="${s.main}"><br>
+      <input id="editInfo" value="${s.info}">
+    `,
+    preConfirm: () => {
+      students[id].name = document.getElementById('editName').value;
+      students[id].main = document.getElementById('editMain').value;
+      students[id].info = document.getElementById('editInfo').value;
+      renderTable();
+    }
+  });
+}
+
+function deleteStudent(id) {
+  Swal.fire({
+    title: '🗑️ حذف الطالب',
+    text: `هل أنت متأكد من حذف الطالب (${students[id].name})؟`,
+    showCancelButton: true,
+    confirmButtonText: 'نعم، احذف',
+    cancelButtonText: 'إلغاء'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      delete students[id];
+      renderTable();
+    }
+  });
+}
+
+async function saveToGitHub() {
+  const token = document.getElementById('token').value.trim();
+  if (!token) return Swal.fire('أدخل التوكن أولاً');
+  localStorage.setItem("gh_token", token);
+
+  const content = `const students = ${JSON.stringify(students, null, 2)};`;
+  const encoded = btoa(unescape(encodeURIComponent(content)));
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: "تحديث بيانات الطلاب من لوحة التحكم",
+      content: encoded,
+      sha: sha,
+      branch: branch
+    })
+  });
+
+  if (res.ok) {
+    Swal.fire('✅ تم الحفظ بنجاح!');
+    loadStudents();
+  } else {
+    Swal.fire('❌ فشل في الحفظ! تحقق من التوكن أو الصلاحيات');
+  }
+}
+
+loadStudents();
+</script>
+</body>
+</html>
