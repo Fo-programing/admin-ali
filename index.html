@@ -13,14 +13,12 @@
       padding: 20px;
       color: #333;
     }
-
     h1 {
       text-align: center;
       color: #004d7a;
       font-size: 26px;
       margin-bottom: 20px;
     }
-
     input, button, select {
       padding: 10px;
       margin: 5px;
@@ -31,33 +29,28 @@
       width: 100%;
       box-sizing: border-box;
     }
-
     .control-panel {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 10px;
       margin-bottom: 20px;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
       background: #fff;
       box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
-
     th, td {
       border: 1px solid #ddd;
       padding: 10px;
       text-align: center;
       font-size: 14px;
     }
-
     th {
       background-color: #1976d2;
       color: white;
     }
-
     .btn {
       background-color: #1976d2;
       color: #fff;
@@ -66,19 +59,15 @@
       transition: background 0.3s;
       cursor: pointer;
     }
-
     .btn:hover {
       background-color: #125ea5;
     }
-
     .btn-danger {
       background-color: #e53935;
     }
-
     .btn-success {
       background-color: #43a047;
     }
-
     .login-screen {
       position: fixed;
       top: 0;
@@ -91,7 +80,6 @@
       align-items: center;
       z-index: 9999;
     }
-
     .login-box {
       background: #fff;
       padding: 30px;
@@ -136,7 +124,7 @@ let students = {};
 let sha = "";
 const owner = "Fo-programing";
 const repo = "Pro";
-const path = "students.json"; // ✅ ملف JSON
+const path = "students.json";
 const branch = "main";
 const PASSWORD = "0101356859001223277310";
 let githubFileUrl = `https://github.com/${owner}/${repo}/blob/${branch}/${path}`;
@@ -154,17 +142,19 @@ function checkLogin() {
   }
 }
 
-function toBase64Unicode(str) {
-  return btoa(unescape(encodeURIComponent(str)));
-}
-
 async function loadStudents() {
-  let res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
-  let data = await res.json();
-  sha = data.sha;
-  let content = atob(data.content);
-  students = JSON.parse(content);
-  renderTable();
+  try {
+    let res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+    let data = await res.json();
+    sha = data.sha;
+    let decodedContent = decodeURIComponent(escape(atob(data.content)));
+    students = JSON.parse(decodedContent);
+    renderTable();
+  } catch (error) {
+    console.error("Error loading students:", error);
+    students = {}; // Initialize empty if file doesn't exist
+    renderTable();
+  }
 }
 
 function renderTable(filterGrade = null) {
@@ -231,14 +221,11 @@ function showGradeMenu() {
     confirmButtonText: "عرض"
   }).then(result => {
     if (result.isConfirmed) {
-      document.getElementById("gradeSearch").value = result.value;
-      filterByGrade(result.value);
+      const selected = result.value;
+      document.getElementById("gradeSearch").value = selected;
+      renderTable(selected);
     }
   });
-}
-
-function filterByGrade(grade) {
-  renderTable(grade);
 }
 
 function addStudent() {
@@ -304,31 +291,40 @@ async function saveToGitHub() {
   if (!token) return Swal.fire('أدخل التوكن أولاً');
   localStorage.setItem("gh_token", token);
 
-  const content = JSON.stringify(students, null, 2); // ✅ حفظ كـ JSON خام
-  const encoded = toBase64Unicode(content);
+  const content = JSON.stringify(students, null, 2);
+  const utf8Content = unescape(encodeURIComponent(content));
+  const encoded = btoa(utf8Content);
 
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      message: "تحديث بيانات الطلاب من لوحة التحكم",
-      content: encoded,
-      sha: sha,
-      branch: branch
-    })
-  });
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: "تحديث بيانات الطلاب من لوحة التحكم",
+        content: encoded,
+        sha: sha,
+        branch: branch
+      })
+    });
 
-  if (res.ok) {
-    Swal.fire('✅ تم الحفظ بنجاح!');
-    loadStudents();
-  } else {
-    Swal.fire('❌ فشل في الحفظ! تحقق من التوكن أو الصلاحيات');
+    if (res.ok) {
+      const data = await res.json();
+      sha = data.content.sha; // Update the sha for next commit
+      Swal.fire('✅ تم الحفظ بنجاح!');
+      loadStudents(); // Refresh data
+    } else {
+      const error = await res.json();
+      Swal.fire(`❌ فشل في الحفظ! ${error.message}`);
+    }
+  } catch (error) {
+    Swal.fire(`❌ خطأ في الاتصال: ${error.message}`);
   }
 }
 
+// Initialize
 loadStudents();
 </script>
 </body>
