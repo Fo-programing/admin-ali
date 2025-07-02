@@ -118,6 +118,12 @@
   <input type="text" id="token" placeholder="🔑 GitHub Token">
   <input type="text" id="searchId" placeholder="🔍 كود الطالب">
   <button class="btn" onclick="searchStudent()">بحث</button>
+
+  <div style="display: flex; gap: 5px;">
+    <input type="text" id="gradeSearch" placeholder="📚 ابحث بالصف" readonly style="cursor:pointer;">
+    <button class="btn" style="padding: 6px 10px;" onclick="showGradeMenu()">🔽</button>
+  </div>
+
   <button class="btn btn-success" onclick="addStudent()">➕ إضافة طالب</button>
   <button class="btn" onclick="openFile()">📂 فتح ملف</button>
   <button class="btn" onclick="saveToGitHub()">💾 حفظ</button>
@@ -130,7 +136,7 @@ let students = {};
 let sha = "";
 const owner = "Fo-programing";
 const repo = "Pro";
-const path = "students.js";
+const path = "students.json"; // ✅ ملف JSON
 const branch = "main";
 const PASSWORD = "0101356859001223277310";
 let githubFileUrl = `https://github.com/${owner}/${repo}/blob/${branch}/${path}`;
@@ -149,26 +155,27 @@ function checkLogin() {
 }
 
 function toBase64Unicode(str) {
-  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) =>
-    String.fromCharCode('0x' + p1)
-  ));
+  return btoa(unescape(encodeURIComponent(str)));
 }
 
 async function loadStudents() {
   let res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
   let data = await res.json();
   sha = data.sha;
-  let code = atob(data.content);
-  let jsonText = code.match(/{[\s\S]*}/)[0];
-  students = eval('(' + jsonText + ')');
+  let content = atob(data.content);
+  students = JSON.parse(content);
   renderTable();
 }
 
-function renderTable() {
-  let html = '<table><thead><tr><th>الكود</th><th>الاسم</th><th>الصف</th><th>معلومة</th><th>الحضور</th><th>المصروفات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody>';
+function renderTable(filterGrade = null) {
+  let html = '<table><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>الصف</th><th>معلومة</th><th>الحضور</th><th>المصروفات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody>';
+  let count = 1;
   for (let id in students) {
     let s = students[id];
+    if (filterGrade && s.main !== filterGrade) continue;
+
     html += `<tr>
+      <td>${count++}</td>
       <td>${id}</td>
       <td>${s.name}</td>
       <td>${s.main}</td>
@@ -205,6 +212,33 @@ function searchStudent() {
 
 function openFile() {
   window.open(githubFileUrl, '_blank');
+}
+
+function showGradeMenu() {
+  const grades = [
+    "الصف الأول الابتدائي", "الصف الثاني الابتدائي", "الصف الثالث الابتدائي",
+    "الصف الرابع الابتدائي", "الصف الخامس الابتدائي", "الصف السادس الابتدائي",
+    "الصف الأول الإعدادي", "الصف الثاني الإعدادي", "الصف الثالث الإعدادي",
+    "الصف الأول الثانوي", "الصف الثاني الثانوي", "الصف الثالث الثانوي"
+  ];
+
+  Swal.fire({
+    title: "📘 اختر الصف",
+    input: 'select',
+    inputOptions: grades.reduce((acc, cur) => { acc[cur] = cur; return acc; }, {}),
+    inputPlaceholder: 'اختر الصف لعرض الطلاب',
+    showCancelButton: true,
+    confirmButtonText: "عرض"
+  }).then(result => {
+    if (result.isConfirmed) {
+      document.getElementById("gradeSearch").value = result.value;
+      filterByGrade(result.value);
+    }
+  });
+}
+
+function filterByGrade(grade) {
+  renderTable(grade);
 }
 
 function addStudent() {
@@ -270,7 +304,7 @@ async function saveToGitHub() {
   if (!token) return Swal.fire('أدخل التوكن أولاً');
   localStorage.setItem("gh_token", token);
 
-  const content = `const students = ${JSON.stringify(students, null, 2)};`;
+  const content = JSON.stringify(students, null, 2); // ✅ حفظ كـ JSON خام
   const encoded = toBase64Unicode(content);
 
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
