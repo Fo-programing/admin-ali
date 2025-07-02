@@ -13,11 +13,29 @@
       padding: 20px;
       color: #333;
     }
-    h1 {
-      text-align: center;
-      color: #004d7a;
-      font-size: 26px;
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 20px;
+    }
+    .header h1 {
+      color: #004d7a;
+      font-size: 24px;
+      margin: 10px 0;
+    }
+    .grade-select button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      background: #1976d2;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .grade-select button:hover {
+      background: #125ea5;
     }
     input, button, select {
       padding: 10px;
@@ -89,35 +107,132 @@
       max-width: 300px;
       text-align: center;
     }
+    #studentsCount {
+      text-align: center;
+      font-weight: bold;
+      margin: 10px 0;
+      color: #333;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .close {
+      color: #aaa;
+      float: left;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: black;
+    }
+    .modal-body {
+      padding: 20px 0;
+    }
+    .modal-footer {
+      text-align: left;
+      padding-top: 20px;
+    }
+    .modal-title {
+      margin-top: 0;
+      color: #1976d2;
+    }
   </style>
 </head>
 <body>
-
-<div class="login-screen" id="loginScreen">
-  <div class="login-box">
-    <h2>🔒 تسجيل الدخول</h2>
-    <input type="password" id="loginPassword" placeholder="ادخل كلمة المرور">
-    <button class="btn btn-success" onclick="checkLogin()">دخول</button>
-  </div>
-</div>
-
-<h1>📚 لوحة تحكم الطلاب</h1>
-<div class="control-panel">
-  <input type="text" id="token" placeholder="🔑 GitHub Token">
-  <input type="text" id="searchId" placeholder="🔍 كود الطالب">
-  <button class="btn" onclick="searchStudent()">بحث</button>
-
-  <div style="display: flex; gap: 5px;">
-    <input type="text" id="gradeSearch" placeholder="📚 ابحث بالصف" readonly style="cursor:pointer;">
-    <button class="btn" style="padding: 6px 10px;" onclick="showGradeMenu()">🔽</button>
+  <div class="login-screen" id="loginScreen">
+    <div class="login-box">
+      <h2>🔒 تسجيل الدخول</h2>
+      <input type="password" id="loginPassword" placeholder="ادخل كلمة المرور">
+      <button class="btn btn-success" onclick="checkLogin()">دخول</button>
+    </div>
   </div>
 
-  <button class="btn btn-success" onclick="addStudent()">➕ إضافة طالب</button>
-  <button class="btn" onclick="openFile()">📂 فتح ملف</button>
-  <button class="btn" onclick="saveToGitHub()">💾 حفظ</button>
-</div>
+  <!-- Modal for Add/Edit Student -->
+  <div id="studentModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h3 class="modal-title" id="modalTitle">إضافة طالب</h3>
+      <div class="modal-body">
+        <input type="text" id="studentId" placeholder="كود الطالب">
+        <input type="text" id="studentName" placeholder="اسم الطالب">
+        <select id="studentGrade">
+          <option value="" disabled selected>اختر الصف</option>
+        </select>
+        <input type="text" id="studentInfo" placeholder="معلومة">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" id="saveStudentBtn">حفظ</button>
+      </div>
+    </div>
+  </div>
 
-<div id="studentsTable"></div>
+  <!-- Modal for Grade Selection -->
+  <div id="gradeModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h3 class="modal-title">اختر الصف لعرض الطلاب</h3>
+      <div class="modal-body">
+        <select id="gradeSelect" style="width: 100%; padding: 10px;">
+          <option value="">عرض جميع الطلاب</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="filterByGrade()">عرض</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Delete Confirmation -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h3 class="modal-title">تأكيد الحذف</h3>
+      <div class="modal-body">
+        <p id="deleteMessage">هل أنت متأكد من حذف هذا الطالب؟</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="confirmDelete()">نعم، احذف</button>
+        <button class="btn" onclick="closeModal()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="header">
+    <h1>📚 لوحة تحكم الطلاب</h1>
+    <div class="grade-select">
+      <button onclick="showGradeModal()">📘 اختر الصف</button>
+      <button onclick="renderTable()">📄 عرض الكل</button>
+    </div>
+  </div>
+
+  <div class="control-panel">
+    <input type="text" id="token" placeholder="🔑 GitHub Token">
+    <input type="text" id="searchId" placeholder="🔍 كود الطالب">
+    <button class="btn" onclick="searchStudent()">بحث</button>
+    <button class="btn btn-success" onclick="showAddModal()">➕ إضافة طالب</button>
+    <button class="btn" onclick="openFile()">📂 فتح ملف</button>
+    <button class="btn" onclick="saveToGitHub()">💾 حفظ</button>
+  </div>
+
+  <div id="studentsCount"></div>
+  <div id="studentsTable"></div>
 
 <script>
 let students = {};
@@ -128,6 +243,15 @@ const path = "students.json";
 const branch = "main";
 const PASSWORD = "0101356859001223277310";
 let githubFileUrl = `https://github.com/${owner}/${repo}/blob/${branch}/${path}`;
+let currentStudentId = null;
+let deleteStudentId = null;
+
+const grades = [
+  "الصف الأول الابتدائي", "الصف الثاني الابتدائي", "الصف الثالث الابتدائي",
+  "الصف الرابع الابتدائي", "الصف الخامس الابتدائي", "الصف السادس الابتدائي",
+  "الصف الأول الإعدادي", "الصف الثاني الإعدادي", "الصف الثالث الإعدادي",
+  "الصف الأول الثانوي", "الصف الثاني الثانوي", "الصف الثالث الثانوي"
+];
 
 if (localStorage.getItem("gh_token")) {
   document.getElementById("token").value = localStorage.getItem("gh_token");
@@ -152,7 +276,7 @@ async function loadStudents() {
     renderTable();
   } catch (error) {
     console.error("Error loading students:", error);
-    students = {}; // Initialize empty if file doesn't exist
+    students = {};
     renderTable();
   }
 }
@@ -160,10 +284,12 @@ async function loadStudents() {
 function renderTable(filterGrade = null) {
   let html = '<table><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>الصف</th><th>معلومة</th><th>الحضور</th><th>المصروفات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody>';
   let count = 1;
+  let studentCount = 0;
   for (let id in students) {
     let s = students[id];
-    if (filterGrade && s.main !== filterGrade) continue;
+    if (filterGrade && s.main.trim() !== filterGrade.trim()) continue;
 
+    studentCount++;
     html += `<tr>
       <td>${count++}</td>
       <td>${id}</td>
@@ -172,12 +298,13 @@ function renderTable(filterGrade = null) {
       <td>${s.info}</td>
       <td>${Object.entries(s.attendance).map(([k,v]) => `${k}: <select onchange="updateAttendance('${id}','${k}',this.value)"><option ${v=="حاضر"?'selected':''}>حاضر</option><option ${v=="غائب"?'selected':''}>غائب</option><option ${v=="-"?'selected':''}>-</option></select>`).join('<br>')}</td>
       <td>${Object.entries(s.fees).map(([k,v]) => `${k}: <input type='checkbox' onchange="updateFee('${id}','${k}',this.checked)" ${v?'checked':''}>`).join('<br>')}</td>
-      <td><button class="btn" onclick="editStudent('${id}')">✏️</button></td>
-      <td><button class="btn btn-danger" onclick="deleteStudent('${id}')">🗑️</button></td>
+      <td><button class="btn" onclick="showEditModal('${id}')">✏️</button></td>
+      <td><button class="btn btn-danger" onclick="showDeleteModal('${id}')">🗑️</button></td>
     </tr>`;
   }
   html += '</tbody></table>';
   document.getElementById('studentsTable').innerHTML = html;
+  document.getElementById('studentsCount').innerText = `📊 عدد الطلاب المعروضين: ${studentCount}`;
 }
 
 function updateAttendance(id, day, value) {
@@ -193,10 +320,15 @@ function searchStudent() {
   if (students[id]) {
     Swal.fire({
       title: '📄 بيانات الطالب',
-      html: `<b>الاسم:</b> ${students[id].name}<br><b>الصف:</b> ${students[id].main}<br><b>معلومة:</b> ${students[id].info}`
+      html: `<b>الاسم:</b> ${students[id].name}<br><b>الصف:</b> ${students[id].main}<br><b>معلومة:</b> ${students[id].info}`,
+      confirmButtonText: 'حسناً'
     });
   } else {
-    Swal.fire('لم يتم العثور على الطالب');
+    Swal.fire({
+      title: '⚠️ تنبيه',
+      text: 'لم يتم العثور على الطالب',
+      confirmButtonText: 'حسناً'
+    });
   }
 }
 
@@ -204,91 +336,147 @@ function openFile() {
   window.open(githubFileUrl, '_blank');
 }
 
-function showGradeMenu() {
-  const grades = [
-    "الصف الأول الابتدائي", "الصف الثاني الابتدائي", "الصف الثالث الابتدائي",
-    "الصف الرابع الابتدائي", "الصف الخامس الابتدائي", "الصف السادس الابتدائي",
-    "الصف الأول الإعدادي", "الصف الثاني الإعدادي", "الصف الثالث الإعدادي",
-    "الصف الأول الثانوي", "الصف الثاني الثانوي", "الصف الثالث الثانوي"
-  ];
-
-  Swal.fire({
-    title: "📘 اختر الصف",
-    input: 'select',
-    inputOptions: grades.reduce((acc, cur) => { acc[cur] = cur; return acc; }, {}),
-    inputPlaceholder: 'اختر الصف لعرض الطلاب',
-    showCancelButton: true,
-    confirmButtonText: "عرض"
-  }).then(result => {
-    if (result.isConfirmed) {
-      const selected = result.value;
-      document.getElementById("gradeSearch").value = selected;
-      renderTable(selected);
-    }
+function showGradeModal() {
+  const gradeSelect = document.getElementById('gradeSelect');
+  gradeSelect.innerHTML = '<option value="">عرض جميع الطلاب</option>';
+  grades.forEach(grade => {
+    gradeSelect.innerHTML += `<option value="${grade}">${grade}</option>`;
   });
+  document.getElementById('gradeModal').style.display = 'block';
 }
 
-function addStudent() {
-  Swal.fire({
-    title: '➕ إضافة طالب',
-    html: `
-      <input id="newId" placeholder="كود الطالب"><br>
-      <input id="newName" placeholder="اسم الطالب"><br>
-      <input id="newMain" placeholder="الصف"><br>
-      <input id="newInfo" placeholder="معلومة">
-    `,
-    preConfirm: () => {
-      let id = document.getElementById('newId').value.trim();
-      let name = document.getElementById('newName').value;
-      let main = document.getElementById('newMain').value;
-      let info = document.getElementById('newInfo').value;
-      if (!id || students[id]) return Swal.showValidationMessage('كود موجود أو غير صالح');
+function filterByGrade() {
+  const gradeSelect = document.getElementById('gradeSelect');
+  const selectedGrade = gradeSelect.value;
+  renderTable(selectedGrade);
+  closeModal();
+}
+
+function showAddModal() {
+  currentStudentId = null;
+  document.getElementById('modalTitle').textContent = 'إضافة طالب';
+  document.getElementById('studentId').value = '';
+  document.getElementById('studentName').value = '';
+  document.getElementById('studentInfo').value = '';
+  
+  const gradeSelect = document.getElementById('studentGrade');
+  gradeSelect.innerHTML = '<option value="" disabled selected>اختر الصف</option>';
+  grades.forEach(grade => {
+    gradeSelect.innerHTML += `<option value="${grade}">${grade}</option>`;
+  });
+  
+  document.getElementById('saveStudentBtn').onclick = saveStudent;
+  document.getElementById('studentModal').style.display = 'block';
+}
+
+function showEditModal(id) {
+  currentStudentId = id;
+  const student = students[id];
+  
+  document.getElementById('modalTitle').textContent = `تعديل بيانات الطالب ${id}`;
+  document.getElementById('studentId').value = id;
+  document.getElementById('studentName').value = student.name;
+  document.getElementById('studentInfo').value = student.info || '';
+  
+  const gradeSelect = document.getElementById('studentGrade');
+  gradeSelect.innerHTML = '';
+  grades.forEach(grade => {
+    gradeSelect.innerHTML += `<option value="${grade}" ${grade === student.main ? 'selected' : ''}>${grade}</option>`;
+  });
+  
+  document.getElementById('saveStudentBtn').onclick = saveStudent;
+  document.getElementById('studentModal').style.display = 'block';
+}
+
+function showDeleteModal(id) {
+  deleteStudentId = id;
+  const student = students[id];
+  document.getElementById('deleteMessage').textContent = `هل أنت متأكد من حذف الطالب (${student.name})؟`;
+  document.getElementById('deleteModal').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('studentModal').style.display = 'none';
+  document.getElementById('gradeModal').style.display = 'none';
+  document.getElementById('deleteModal').style.display = 'none';
+}
+
+function saveStudent() {
+  const id = document.getElementById('studentId').value.trim();
+  const name = document.getElementById('studentName').value.trim();
+  const grade = document.getElementById('studentGrade').value;
+  const info = document.getElementById('studentInfo').value.trim();
+  
+  if (!id) {
+    Swal.fire('⚠️ تنبيه', 'يجب إدخال كود الطالب', 'warning');
+    return;
+  }
+  
+  if (!name) {
+    Swal.fire('⚠️ تنبيه', 'يجب إدخال اسم الطالب', 'warning');
+    return;
+  }
+  
+  if (!grade) {
+    Swal.fire('⚠️ تنبيه', 'يجب اختيار الصف', 'warning');
+    return;
+  }
+  
+  if (currentStudentId === null && students[id]) {
+    Swal.fire('⚠️ تنبيه', 'كود الطالب موجود مسبقاً', 'warning');
+    return;
+  }
+  
+  if (currentStudentId === null) {
+    // Add new student
+    students[id] = {
+      name,
+      main: grade,
+      info,
+      attendance: {"السبت":"-","الأحد":"-","الاثنين":"-","الثلاثاء":"-","الأربعاء":"-","الخميس":"-","الجمعة":"-"},
+      fees: {"أغسطس":false,"سبتمبر":false,"أكتوبر":false,"نوفمبر":false,"ديسمبر":false,"يناير":false,"فبراير":false,"مارس":false,"أبريل":false}
+    };
+  } else {
+    // Update existing student
+    if (currentStudentId !== id) {
+      // If ID changed, we need to create new entry and delete old one
       students[id] = {
-        name, main, info,
-        attendance: {"السبت":"-","الأحد":"-","الاثنين":"-","الثلاثاء":"-","الأربعاء":"-","الخميس":"-","الجمعة":"-"},
-        fees: {"أغسطس":false,"سبتمبر":false,"أكتوبر":false,"نوفمبر":false,"ديسمبر":false,"يناير":false,"فبراير":false,"مارس":false,"أبريل":false}
+        name,
+        main: grade,
+        info,
+        attendance: students[currentStudentId].attendance,
+        fees: students[currentStudentId].fees
       };
-      renderTable();
+      delete students[currentStudentId];
+    } else {
+      // Just update the existing student
+      students[id].name = name;
+      students[id].main = grade;
+      students[id].info = info;
     }
-  });
+  }
+  
+  renderTable();
+  closeModal();
+  Swal.fire('✅ تم الحفظ', 'تم حفظ بيانات الطالب بنجاح', 'success');
 }
 
-function editStudent(id) {
-  let s = students[id];
-  Swal.fire({
-    title: `✏️ تعديل بيانات الطالب ${id}`,
-    html: `
-      <input id="editName" value="${s.name}"><br>
-      <input id="editMain" value="${s.main}"><br>
-      <input id="editInfo" value="${s.info}">
-    `,
-    preConfirm: () => {
-      students[id].name = document.getElementById('editName').value;
-      students[id].main = document.getElementById('editMain').value;
-      students[id].info = document.getElementById('editInfo').value;
-      renderTable();
-    }
-  });
-}
-
-function deleteStudent(id) {
-  Swal.fire({
-    title: '🗑️ حذف الطالب',
-    text: `هل أنت متأكد من حذف الطالب (${students[id].name})؟`,
-    showCancelButton: true,
-    confirmButtonText: 'نعم، احذف',
-    cancelButtonText: 'إلغاء'
-  }).then((result) => {
-    if (result.isConfirmed) {
-      delete students[id];
-      renderTable();
-    }
-  });
+function confirmDelete() {
+  if (deleteStudentId) {
+    delete students[deleteStudentId];
+    renderTable();
+    closeModal();
+    Swal.fire('✅ تم الحذف', 'تم حذف الطالب بنجاح', 'success');
+    deleteStudentId = null;
+  }
 }
 
 async function saveToGitHub() {
   const token = document.getElementById('token').value.trim();
-  if (!token) return Swal.fire('أدخل التوكن أولاً');
+  if (!token) {
+    Swal.fire('⚠️ تنبيه', 'أدخل التوكن أولاً', 'warning');
+    return;
+  }
   localStorage.setItem("gh_token", token);
 
   const content = JSON.stringify(students, null, 2);
@@ -312,20 +500,22 @@ async function saveToGitHub() {
 
     if (res.ok) {
       const data = await res.json();
-      sha = data.content.sha; // Update the sha for next commit
-      Swal.fire('✅ تم الحفظ بنجاح!');
-      loadStudents(); // Refresh data
+      sha = data.content.sha;
+      Swal.fire('✅ تم الحفظ', 'تم حفظ البيانات بنجاح على GitHub', 'success');
+      loadStudents();
     } else {
       const error = await res.json();
-      Swal.fire(`❌ فشل في الحفظ! ${error.message}`);
+      Swal.fire('❌ خطأ', `فشل في الحفظ! ${error.message}`, 'error');
     }
   } catch (error) {
-    Swal.fire(`❌ خطأ في الاتصال: ${error.message}`);
+    Swal.fire('❌ خطأ', `خطأ في الاتصال: ${error.message}`, 'error');
   }
 }
 
-// Initialize
-loadStudents();
+// Initialize grade selects
+window.onload = function() {
+  loadStudents();
+};
 </script>
 </body>
 </html>
