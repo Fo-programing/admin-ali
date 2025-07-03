@@ -153,6 +153,15 @@
       margin-top: 0;
       color: #1976d2;
     }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -170,15 +179,35 @@
       <span class="close" onclick="closeModal()">&times;</span>
       <h3 class="modal-title" id="modalTitle">إضافة طالب</h3>
       <div class="modal-body">
-        <input type="text" id="studentId" placeholder="كود الطالب">
-        <input type="text" id="studentName" placeholder="اسم الطالب">
-        <select id="studentGrade">
-          <option value="" disabled selected>اختر الصف</option>
-        </select>
-        <input type="text" id="studentInfo" placeholder="معلومة">
+        <div class="form-group">
+          <label for="studentId">كود الطالب</label>
+          <input type="text" id="studentId" placeholder="أدخل كود الطالب">
+        </div>
+        <div class="form-group">
+          <label for="studentName">اسم الطالب</label>
+          <input type="text" id="studentName" placeholder="أدخل اسم الطالب">
+        </div>
+        <div class="form-group">
+          <label for="studentGrade">الصف</label>
+          <select id="studentGrade">
+            <option value="" disabled selected>اختر الصف</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="studentLevel">المستوى</label>
+          <select id="studentLevel">
+            <option value="" disabled selected>اختر المستوى</option>
+            <option value="ضعيف">ضعيف</option>
+            <option value="مقبول">مقبول</option>
+            <option value="جيد">جيد</option>
+            <option value="جيد جدا">جيد جدا</option>
+            <option value="ممتاز">ممتاز</option>
+          </select>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-success" id="saveStudentBtn">حفظ</button>
+        <button class="btn" onclick="closeModal()">إلغاء</button>
       </div>
     </div>
   </div>
@@ -195,6 +224,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn" onclick="filterByGrade()">عرض</button>
+        <button class="btn" onclick="closeModal()">إلغاء</button>
       </div>
     </div>
   </div>
@@ -253,6 +283,8 @@ const grades = [
   "الصف الأول الثانوي", "الصف الثاني الثانوي", "الصف الثالث الثانوي"
 ];
 
+const levels = ["ضعيف", "مقبول", "جيد", "جيد جدا", "ممتاز"];
+
 if (localStorage.getItem("gh_token")) {
   document.getElementById("token").value = localStorage.getItem("gh_token");
 }
@@ -262,7 +294,12 @@ function checkLogin() {
   if (pass === PASSWORD) {
     document.getElementById("loginScreen").style.display = "none";
   } else {
-    alert("كلمة مرور خاطئة!");
+    Swal.fire({
+      title: 'خطأ!',
+      text: 'كلمة مرور خاطئة!',
+      icon: 'error',
+      confirmButtonText: 'حسناً'
+    });
   }
 }
 
@@ -282,7 +319,7 @@ async function loadStudents() {
 }
 
 function renderTable(filterGrade = null) {
-  let html = '<table><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>الصف</th><th>معلومة</th><th>الحضور</th><th>المصروفات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>الصف</th><th>المستوى</th><th>الحضور</th><th>المصروفات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody>';
   let count = 1;
   let studentCount = 0;
   for (let id in students) {
@@ -295,7 +332,7 @@ function renderTable(filterGrade = null) {
       <td>${id}</td>
       <td>${s.name}</td>
       <td>${s.main}</td>
-      <td>${s.info}</td>
+      <td>${s.info || '-'}</td>
       <td>${Object.entries(s.attendance).map(([k,v]) => `${k}: <select onchange="updateAttendance('${id}','${k}',this.value)"><option ${v=="حاضر"?'selected':''}>حاضر</option><option ${v=="غائب"?'selected':''}>غائب</option><option ${v=="-"?'selected':''}>-</option></select>`).join('<br>')}</td>
       <td>${Object.entries(s.fees).map(([k,v]) => `${k}: <input type='checkbox' onchange="updateFee('${id}','${k}',this.checked)" ${v?'checked':''}>`).join('<br>')}</td>
       <td><button class="btn" onclick="showEditModal('${id}')">✏️</button></td>
@@ -320,7 +357,7 @@ function searchStudent() {
   if (students[id]) {
     Swal.fire({
       title: '📄 بيانات الطالب',
-      html: `<b>الاسم:</b> ${students[id].name}<br><b>الصف:</b> ${students[id].main}<br><b>معلومة:</b> ${students[id].info}`,
+      html: `<b>الكود:</b> ${id}<br><b>الاسم:</b> ${students[id].name}<br><b>الصف:</b> ${students[id].main}<br><b>المستوى:</b> ${students[id].info || '-'}`,
       confirmButtonText: 'حسناً'
     });
   } else {
@@ -354,10 +391,10 @@ function filterByGrade() {
 
 function showAddModal() {
   currentStudentId = null;
-  document.getElementById('modalTitle').textContent = 'إضافة طالب';
+  document.getElementById('modalTitle').textContent = 'إضافة طالب جديد';
   document.getElementById('studentId').value = '';
   document.getElementById('studentName').value = '';
-  document.getElementById('studentInfo').value = '';
+  document.getElementById('studentLevel').value = '';
   
   const gradeSelect = document.getElementById('studentGrade');
   gradeSelect.innerHTML = '<option value="" disabled selected>اختر الصف</option>';
@@ -376,12 +413,17 @@ function showEditModal(id) {
   document.getElementById('modalTitle').textContent = `تعديل بيانات الطالب ${id}`;
   document.getElementById('studentId').value = id;
   document.getElementById('studentName').value = student.name;
-  document.getElementById('studentInfo').value = student.info || '';
   
   const gradeSelect = document.getElementById('studentGrade');
   gradeSelect.innerHTML = '';
   grades.forEach(grade => {
     gradeSelect.innerHTML += `<option value="${grade}" ${grade === student.main ? 'selected' : ''}>${grade}</option>`;
+  });
+  
+  const levelSelect = document.getElementById('studentLevel');
+  levelSelect.innerHTML = '<option value="" disabled>اختر المستوى</option>';
+  levels.forEach(level => {
+    levelSelect.innerHTML += `<option value="${level}" ${level === student.info ? 'selected' : ''}>${level}</option>`;
   });
   
   document.getElementById('saveStudentBtn').onclick = saveStudent;
@@ -405,25 +447,41 @@ function saveStudent() {
   const id = document.getElementById('studentId').value.trim();
   const name = document.getElementById('studentName').value.trim();
   const grade = document.getElementById('studentGrade').value;
-  const info = document.getElementById('studentInfo').value.trim();
+  const level = document.getElementById('studentLevel').value;
   
   if (!id) {
-    Swal.fire('⚠️ تنبيه', 'يجب إدخال كود الطالب', 'warning');
+    Swal.fire({
+      title: '⚠️ تنبيه',
+      text: 'يجب إدخال كود الطالب',
+      icon: 'warning'
+    });
     return;
   }
   
   if (!name) {
-    Swal.fire('⚠️ تنبيه', 'يجب إدخال اسم الطالب', 'warning');
+    Swal.fire({
+      title: '⚠️ تنبيه',
+      text: 'يجب إدخال اسم الطالب',
+      icon: 'warning'
+    });
     return;
   }
   
   if (!grade) {
-    Swal.fire('⚠️ تنبيه', 'يجب اختيار الصف', 'warning');
+    Swal.fire({
+      title: '⚠️ تنبيه',
+      text: 'يجب اختيار الصف',
+      icon: 'warning'
+    });
     return;
   }
   
   if (currentStudentId === null && students[id]) {
-    Swal.fire('⚠️ تنبيه', 'كود الطالب موجود مسبقاً', 'warning');
+    Swal.fire({
+      title: '⚠️ تنبيه',
+      text: 'كود الطالب موجود مسبقاً',
+      icon: 'warning'
+    });
     return;
   }
   
@@ -432,7 +490,7 @@ function saveStudent() {
     students[id] = {
       name,
       main: grade,
-      info,
+      info: level,
       attendance: {"السبت":"-","الأحد":"-","الاثنين":"-","الثلاثاء":"-","الأربعاء":"-","الخميس":"-","الجمعة":"-"},
       fees: {"أغسطس":false,"سبتمبر":false,"أكتوبر":false,"نوفمبر":false,"ديسمبر":false,"يناير":false,"فبراير":false,"مارس":false,"أبريل":false}
     };
@@ -443,7 +501,7 @@ function saveStudent() {
       students[id] = {
         name,
         main: grade,
-        info,
+        info: level,
         attendance: students[currentStudentId].attendance,
         fees: students[currentStudentId].fees
       };
@@ -452,13 +510,17 @@ function saveStudent() {
       // Just update the existing student
       students[id].name = name;
       students[id].main = grade;
-      students[id].info = info;
+      students[id].info = level;
     }
   }
   
   renderTable();
   closeModal();
-  Swal.fire('✅ تم الحفظ', 'تم حفظ بيانات الطالب بنجاح', 'success');
+  Swal.fire({
+    title: '✅ تم الحفظ',
+    text: 'تم حفظ بيانات الطالب بنجاح',
+    icon: 'success'
+  });
 }
 
 function confirmDelete() {
@@ -466,7 +528,11 @@ function confirmDelete() {
     delete students[deleteStudentId];
     renderTable();
     closeModal();
-    Swal.fire('✅ تم الحذف', 'تم حذف الطالب بنجاح', 'success');
+    Swal.fire({
+      title: '✅ تم الحذف',
+      text: 'تم حذف الطالب بنجاح',
+      icon: 'success'
+    });
     deleteStudentId = null;
   }
 }
@@ -474,7 +540,11 @@ function confirmDelete() {
 async function saveToGitHub() {
   const token = document.getElementById('token').value.trim();
   if (!token) {
-    Swal.fire('⚠️ تنبيه', 'أدخل التوكن أولاً', 'warning');
+    Swal.fire({
+      title: '⚠️ تنبيه',
+      text: 'أدخل التوكن أولاً',
+      icon: 'warning'
+    });
     return;
   }
   localStorage.setItem("gh_token", token);
@@ -501,18 +571,30 @@ async function saveToGitHub() {
     if (res.ok) {
       const data = await res.json();
       sha = data.content.sha;
-      Swal.fire('✅ تم الحفظ', 'تم حفظ البيانات بنجاح على GitHub', 'success');
+      Swal.fire({
+        title: '✅ تم الحفظ',
+        text: 'تم حفظ البيانات بنجاح على GitHub',
+        icon: 'success'
+      });
       loadStudents();
     } else {
       const error = await res.json();
-      Swal.fire('❌ خطأ', `فشل في الحفظ! ${error.message}`, 'error');
+      Swal.fire({
+        title: '❌ خطأ',
+        text: `فشل في الحفظ! ${error.message}`,
+        icon: 'error'
+      });
     }
   } catch (error) {
-    Swal.fire('❌ خطأ', `خطأ في الاتصال: ${error.message}`, 'error');
+    Swal.fire({
+      title: '❌ خطأ',
+      text: `خطأ في الاتصال: ${error.message}`,
+      icon: 'error'
+    });
   }
 }
 
-// Initialize grade selects
+// Initialize when page loads
 window.onload = function() {
   loadStudents();
 };
